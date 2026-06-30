@@ -115,6 +115,9 @@ export async function getTeams(event: H3Event<EventHandlerRequest>): Promise<Tea
         nextUrl = links['next'] || null
         page += 1
     }
+        const filteredTeams = allTeams.filter(team =>
+            team.name.toLowerCase().includes("copilot")
+        );
 
-    return allTeams
+    return filteredTeams
 }
