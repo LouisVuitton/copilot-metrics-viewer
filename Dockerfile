@@ -1,5 +1,5 @@
 # ----- Build stage -----
-FROM node:20-bookworm-slim AS builder
+FROM node:24-bookworm-slim AS builder
 WORKDIR /app
 
 # Installer les dépendances
@@ -11,7 +11,7 @@ COPY . .
 RUN npm run build
 
 # ----- Runtime stage -----
-FROM node:20-bookworm-slim
+FROM node:24-bookworm-slim
 WORKDIR /app
 
 ENV NODE_ENV=production
