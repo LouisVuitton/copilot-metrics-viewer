@@ -145,6 +145,7 @@ export default defineNuxtConfig({
       useLegacyApi: false,  // Set true to use deprecated /copilot/metrics API (USE_LEGACY_API)
       enableHistoricalMode: false,  // Enable storage-backed historical queries (NUXT_PUBLIC_ENABLE_HISTORICAL_MODE)
       hiddenTabs: '',  // Comma-separated list of tab names to hide (NUXT_PUBLIC_HIDDEN_TABS)
+      hideAdminPanel: false,  // Hide the toolbar "Admin panel" button (NUXT_PUBLIC_HIDE_ADMIN_PANEL). UI-only: /api/admin/* stays reachable.
       enableAiChat: true,  // Enable AI-powered chat for metrics Q&A (NUXT_PUBLIC_ENABLE_AI_CHAT)
       entraClientId: '',    // NUXT_PUBLIC_ENTRA_CLIENT_ID — app registration client ID for MSAL popup auth
       entraTenantId: '',    // NUXT_PUBLIC_ENTRA_TENANT_ID — tenant ID (defaults to 'common' for multi-tenant)

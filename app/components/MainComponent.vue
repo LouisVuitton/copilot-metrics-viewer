@@ -14,7 +14,7 @@
       </v-btn>
 
       <v-btn
-        v-if="!signInRequired"
+        v-if="!signInRequired && !adminPanelHidden"
         icon
         title="Admin panel"
         @click="showAdminPanel = true"
@@ -751,6 +751,11 @@ export default defineNuxtComponent({
       return isAuthRequired.value && !loggedIn.value;
     });
 
+    // NUXT_PUBLIC_HIDE_ADMIN_PANEL — env values arrive as boolean or string.
+    const adminPanelHidden = computed(() =>
+      config.public.hideAdminPanel === true || String(config.public.hideAdminPanel) === 'true'
+    );
+
     const seatsFetch = useFetch('/api/seats', {
       server: true,
       immediate: !signInRequired.value,
@@ -846,6 +851,7 @@ export default defineNuxtComponent({
       orgLabel,
       parentUrl,
       signInRequired,
+      adminPanelHidden,
       user,
       seatsFetch,
       userMetricsFetch,

@@ -463,11 +463,21 @@ Even when on the admin allowlist, an admin only sees billing data if `NUXT_GITHU
 
 Comma-separated list of dashboard tab names to hide. Applies at startup without requiring a rebuild — useful for pre-built Docker deployments. The filter is case-insensitive and trims surrounding whitespace.
 
-Available tab names: `languages`, `editors`, `copilot chat`, `agent activity`, `pull requests`, `github.com`, `seat analysis`, `user metrics`, `api response`
+Available tab names: `languages`, `editors`, `copilot chat`, `agent activity`, `pull requests`, `github.com`, `seat analysis`, `user metrics`, `my usage`, `billing`, `api response`
 
 ````
 # Hide the "Agent Activity" and "API Response" tabs
 NUXT_PUBLIC_HIDDEN_TABS=agent activity,api response
+````
+
+#### NUXT_PUBLIC_HIDE_ADMIN_PANEL
+
+Default is `false`. When set to `true`, the toolbar "Admin panel" button (shield-crown icon) is hidden. This is UI-only: the `/api/admin/*` endpoints remain reachable, so restrict them at the network/auth layer if needed.
+
+````
+# e.g. production: hide Billing tab and Admin panel button
+NUXT_PUBLIC_HIDDEN_TABS=billing
+NUXT_PUBLIC_HIDE_ADMIN_PANEL=true
 ````
 
 #### NUXT_PUBLIC_ENABLE_HISTORICAL_MODE
