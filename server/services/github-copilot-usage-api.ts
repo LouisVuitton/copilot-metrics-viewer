@@ -192,8 +192,30 @@ export interface UserDayRecord {
    * Object (not array) because the GitHub CLI has a single binary identity.
    */
   totals_by_cli?: UserCliTotals;
+  /**
+   * Per-client usage (vscode, jetbrains, code_review, cloud_agent, github_web,
+   * …) with token usage. This is where current GitHub reports carry per-user
+   * token data; `totals_by_cli` is absent from them.
+   */
+  totals_by_client?: UserClientTotals[];
   /** AI adoption phase observed on this day. */
   ai_adoption_phase?: AiAdoptionPhase;
+}
+
+/**
+ * Per-user, per-client usage totals (one entry per client in
+ * `totals_by_client`). The raw report also nests `totals_by_model` inside each
+ * entry; it is ignored when aggregating to keep the payload small.
+ */
+export interface UserClientTotals {
+  client: string;
+  request_count: number;
+  session_count: number;
+  token_usage?: {
+    output_tokens_sum: number;
+    prompt_tokens_sum: number;
+    avg_tokens_per_request: number;
+  };
 }
 
 /** Per-user IDE usage totals */
@@ -345,6 +367,11 @@ export interface UserTotals {
    */
   totals_by_cli?: UserCliTotals;
   /**
+   * Per-client usage (requests, sessions, tokens) summed over the period.
+   * Optional — only present when the report carries `totals_by_client`.
+   */
+  totals_by_client?: UserClientTotals[];
+  /**
    * Most recent AI adoption phase observed for this user in the reporting
    * window. Phase can change day-to-day; we surface the latest value so it
    * reflects the user's current state.
@@ -465,6 +492,8 @@ export function aggregateUserDayRecords(records: UserDayRecord[]): UserTotals[] 
     totals_by_model_feature: UserModelFeatureTotals[];
     /** Summed CLI totals across days; undefined until we see CLI data */
     cli: UserCliTotals | undefined;
+    /** Summed per-client totals keyed by client name; undefined until seen */
+    clients: Map<string, UserClientTotals> | undefined;
     /** Track latest day we saw for adoption phase (string compare is safe for ISO dates) */
     latestPhaseDay: string;
     ai_adoption_phase: AiAdoptionPhase | undefined;
@@ -490,6 +519,7 @@ export function aggregateUserDayRecords(records: UserDayRecord[]): UserTotals[] 
         totals_by_language_feature: [],
         totals_by_model_feature: [],
         cli: undefined,
+        clients: undefined,
         latestPhaseDay: '',
         ai_adoption_phase: undefined,
       };
@@ -548,6 +578,28 @@ export function aggregateUserDayRecords(records: UserDayRecord[]): UserTotals[] 
       }
     }
 
+    // Per-client: sum requests/sessions/tokens per client name across days.
+    if (Array.isArray(rec.totals_by_client)) {
+      for (const src of rec.totals_by_client) {
+        if (!src?.client) continue;
+        if (!agg.clients) agg.clients = new Map();
+        let c = agg.clients.get(src.client);
+        if (!c) {
+          c = { client: src.client, request_count: 0, session_count: 0 };
+          agg.clients.set(src.client, c);
+        }
+        c.request_count += src.request_count || 0;
+        c.session_count += src.session_count || 0;
+        if (src.token_usage) {
+          if (!c.token_usage) {
+            c.token_usage = { output_tokens_sum: 0, prompt_tokens_sum: 0, avg_tokens_per_request: 0 };
+          }
+          c.token_usage.output_tokens_sum += src.token_usage.output_tokens_sum || 0;
+          c.token_usage.prompt_tokens_sum += src.token_usage.prompt_tokens_sum || 0;
+        }
+      }
+    }
+
     agg.totals_by_ide = mergeIdeBreakdown(agg.totals_by_ide, rec.totals_by_ide);
     agg.totals_by_feature = mergeBreakdown(
       agg.totals_by_feature, rec.totals_by_feature,
@@ -571,6 +623,13 @@ export function aggregateUserDayRecords(records: UserDayRecord[]): UserTotals[] 
       agg.cli.token_usage.avg_tokens_per_request =
         (agg.cli.token_usage.prompt_tokens_sum + agg.cli.token_usage.output_tokens_sum) / agg.cli.request_count;
     }
+    const clients = agg.clients ? [...agg.clients.values()] : undefined;
+    for (const c of clients ?? []) {
+      if (c.token_usage && c.request_count > 0) {
+        c.token_usage.avg_tokens_per_request =
+          (c.token_usage.prompt_tokens_sum + c.token_usage.output_tokens_sum) / c.request_count;
+      }
+    }
     result.push({
       login,
       user_id: agg.user_id,
@@ -588,6 +647,7 @@ export function aggregateUserDayRecords(records: UserDayRecord[]): UserTotals[] 
       totals_by_language_feature: agg.totals_by_language_feature,
       totals_by_model_feature: agg.totals_by_model_feature,
       totals_by_cli: agg.cli,
+      totals_by_client: clients,
       ai_adoption_phase: agg.ai_adoption_phase,
     });
   }

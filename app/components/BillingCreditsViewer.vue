@@ -110,9 +110,9 @@
             <v-col cols="12" md="6">
               <v-card variant="outlined">
                 <v-card-title class="text-subtitle-1">
-                  Top token users (CLI)
+                  Top token users
                   <span class="text-caption text-medium-emphasis ml-2">
-                    (prompt + output)
+                    (prompt + output, all clients)
                   </span>
                 </v-card-title>
                 <v-card-text>
@@ -120,8 +120,7 @@
                     <Bar :data="topTokensChartData" :options="topTokensChartOptions" />
                   </div>
                   <v-alert v-else type="info" variant="tonal" density="compact">
-                    No per-user CLI token usage available — load the User Metrics tab
-                    once so token data is fetched, then revisit.
+                    No per-user token usage reported by GitHub for this period.
                   </v-alert>
                 </v-card-text>
               </v-card>
@@ -191,6 +190,7 @@ import {
   Legend,
 } from 'chart.js';
 import { PALETTE } from '@/utils/chartPlugins';
+import { totalUserTokens, type UserTokenSource } from '@/utils/tokenUsage';
 import type { BillingCreditsResponse, BillingUsageItem } from '../../server/api/billing-credits.get';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
@@ -221,7 +221,7 @@ export default defineComponent({
     // the per-user table emits @update:options with the visible page's logins
     // and we batch-fetch billing on demand. Failures are non-fatal (table
     // still renders with token data; $ columns show "—").
-    const { data: userMetricsData } = await useFetch<{ login: string; totals_by_cli?: { token_usage?: { prompt_tokens_sum: number; output_tokens_sum: number } } }[]>(
+    const { data: userMetricsData } = await useFetch<({ login: string } & UserTokenSource)[]>(
       '/api/user-metrics',
       {
         query: computed(() => props.queryParams),
@@ -298,17 +298,16 @@ export default defineComponent({
     );
 
     // Per-user rows are projected from /api/user-metrics (canonical user list
-    // + CLI token totals) and joined with the lazy-loaded billing map. Users
+    // + token totals across all clients) and joined with the lazy-loaded billing map. Users
     // we haven't fetched billing for yet appear with $0 / 0 credits and will
     // populate as the v-data-table pages over them.
     const perUserRows = computed<PerUserRow[]>(() => {
-      const um = (userMetricsData?.value ?? []) as { login: string; totals_by_cli?: { token_usage?: { prompt_tokens_sum: number; output_tokens_sum: number } } }[];
+      const um = (userMetricsData?.value ?? []) as ({ login: string } & UserTokenSource)[];
       if (um.length === 0) return [];
       return um.map(u => {
         const key = u.login.toLowerCase();
         const billing = billingByLogin.get(key);
-        const tu = u.totals_by_cli?.token_usage;
-        const tokens = tu ? (tu.prompt_tokens_sum || 0) + (tu.output_tokens_sum || 0) : 0;
+        const tokens = totalUserTokens(u);
         return {
           user: billing?.display || u.login,
           credits: billing?.credits || 0,
@@ -384,7 +383,7 @@ export default defineComponent({
     const perUserHeaders = [
       { title: 'User', key: 'user', sortable: true },
       { title: 'Credits', key: 'credits', sortable: true, align: 'end' as const },
-      { title: 'Tokens (CLI)', key: 'tokens', sortable: true, align: 'end' as const },
+      { title: 'Tokens', key: 'tokens', sortable: true, align: 'end' as const },
       { title: 'Gross $', key: 'grossAmount', sortable: true, align: 'end' as const },
       { title: 'Net $', key: 'netAmount', sortable: true, align: 'end' as const },
       { title: 'Models', key: 'models', sortable: true, align: 'end' as const },
